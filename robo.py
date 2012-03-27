@@ -17,6 +17,7 @@ version = "0.1"
 
 
 acceptTypes = ['.ufo', '.py', '.RoboFontExt', ".otf", ".ttf"]
+acceptTypes = [ '.ufo',
 
 helpText = """Call RoboFont.app to open UFO sources, (nested) folders of UFO sources and python scripts.
     -h  print options
