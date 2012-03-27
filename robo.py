@@ -5,6 +5,11 @@
     Python script intended for use as a command line tool.
     It is to open up files with RoboFont.
     
+    Dependencies and assumptions:
+        _ needs to run on OSX.
+        - needs to run on a Python version that can import AppKit.
+        - needs to run on a computer that has RoboFont installed.
+        
     Erik van Blokland erik@letterror.com
     
 
@@ -16,8 +21,16 @@ import subprocess
 version = "0.1"
 
 
-acceptTypes = ['.ufo', '.py', '.RoboFontExt', ".otf", ".ttf"]
 acceptTypes = [ '.ufo',
+                '.py',
+                '.RoboFontExt',
+                ".otf",
+                ".ttf",
+                ".woff",
+                ".pfa",
+                ".pfb",
+                ".ttx",
+                ]
 
 helpText = """Call RoboFont.app to open UFO sources, (nested) folders of UFO sources and python scripts.
     -h  print options
