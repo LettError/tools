@@ -18,7 +18,7 @@ from AppKit import *
 import os, sys
 import subprocess
 
-version = "0.1"
+version = "0.2"
 
 
 acceptTypes = [ '.ufo',
