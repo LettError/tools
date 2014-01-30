@@ -61,12 +61,17 @@ class InterpolatedStateTool(object):
         self._lastName = ""
         self._currentGlyph = None
         height = 32
-        self.w = vanilla.FloatingWindow((250,height),
+        self.w = vanilla.FloatingWindow(
+            (250,height),
             "Interpolated State %s"%__version__,
-            maxSize=(500, height+16), minSize=(150, height+16) 
-            )
-        self.w.clearButton = vanilla.Button((-30, 5, -5, 20), u"✕", callback=self.callbackClearButton)
-        self.w.interpolateSlider = vanilla.Slider((5, 5, -35, 20), 0, 100, 100, callback=self.callbackInterpolateSlider)
+            maxSize=(500, height+16),
+            minSize=(150, height+16) )
+        self.w.clearButton = vanilla.Button(
+            (-30, 5, -5, 20), u"✕",
+            callback=self.callbackClearButton)
+        self.w.interpolateSlider = vanilla.Slider(
+            (5, 5, -35, 20), 0, 100, 100,
+            callback=self.callbackInterpolateSlider)
         self.w.interpolateSlider.enable(False)
 
         self.w.bind("close", self.bindingWindowClosed)
@@ -126,16 +131,6 @@ class InterpolatedStateTool(object):
             self._lastState = s
             self._lastName = g.name
 
-        self.enableButtons()
-    
-    def enableButtons(self):
-        #if self._lastState is None:
-        #    #self.w.saveButton.enable(False)
-        #    self.w.saveButton.setTitle("No glyph")
-        #else:
-        #    self.w.saveButton.enable(True)
-        #    self.w.saveButton.setTitle("Add %s"%self._lastName)
-            
         if len(self._states)==0:
             self.w.clearButton.enable(False)
         else:
@@ -150,7 +145,6 @@ class InterpolatedStateTool(object):
                 if state.digest == self._states[-1].digest:
                     # already got this one, thanks.
                     return
-            #self.reportStatus("This is a new one.")
             self._states.append(state)
             self.w.clearButton.enable(True)
             self.reportStatus()
@@ -235,3 +229,4 @@ class InterpolatedStateTool(object):
     
 if __name__ == "__main__":
     ist = InterpolatedStateTool()
+
