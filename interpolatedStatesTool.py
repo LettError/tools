@@ -1,20 +1,28 @@
 #!/usr/bin/env python
 # encoding: utf-8
 
-__version__ = "0.2"
+__version__ = "0.21"
 
 import vanilla
 import time, math
 from AppKit import NSBeep
 
-""" Interpolated states.
+from mojo.events import addObserver, removeObserver
+
+""" 
+    Interpolated states.
     
-    Should be a simple tool to use: interpolate between non-breaking point moves.
-        Small window with a "save state" button that records a mathglyph of the current glyph.
-        When 1 or more states have been recorded the slider then interpolates between them.
-        The last state before the slider is used is the 100% state, this one does not need to be added explicitly.
-        
-    The tool should not try to do too much compatibility checking.
+    A simple, small floating window with a slider.
+    In a glyph edit window, use the 'a' key to record the state of the glyph.
+    Then, after moving stuff around, use the slider to interpolate between the states.
+    
+    Think of this as a smooth kind of undo (even if it does not interact with 
+    the actual undo stack in RoboFont)
+    
+    The X button clears the states.
+    
+    Erik van Blokland
+    Frederik Berlaen.   
     
 """
 
@@ -52,16 +60,20 @@ class InterpolatedStateTool(object):
         self._lastState = None    # place for the last state before we start interpolating
         self._lastName = ""
         self._currentGlyph = None
-        self.w = vanilla.Window((300, 90), "Interpolated State %s"%__version__)
-        self.w.saveButton = vanilla.Button((5, 5, -35, 20), "Add State", callback=self.callbackSaveButton)
+        height = 32
+        self.w = vanilla.FloatingWindow((250,height),
+            "Interpolated State %s"%__version__,
+            maxSize=(500, height+16), minSize=(150, height+16) 
+            )
         self.w.clearButton = vanilla.Button((-30, 5, -5, 20), u"✕", callback=self.callbackClearButton)
-        self.w.interpolateSlider = vanilla.Slider((5, 35, -5, 20), 0, 100, 100, callback=self.callbackInterpolateSlider)
+        self.w.interpolateSlider = vanilla.Slider((5, 5, -35, 20), 0, 100, 100, callback=self.callbackInterpolateSlider)
         self.w.interpolateSlider.enable(False)
-        self.w.status = vanilla.TextBox((5,-25, -5, 20), "", sizeStyle="mini")
 
         self.w.bind("close", self.bindingWindowClosed)
-        self.w.bind("became main", self.bindingWindowBecameMain)
         self.reportStatus("Add a glyph.")
+        addObserver(self, "currentGlyphChanged", "currentGlyphChanged")
+        addObserver(self, "keyDown", "keyDown")
+        self.subscribeGlyph()
         self.w.open()
         
     def reportStatus(self, text=None):
@@ -70,15 +82,32 @@ class InterpolatedStateTool(object):
             plural = ""
             if l == 0 or l > 1:
                 plural = "s"
-            self.w.status.set("%d state%s recorded"%(l, plural))
+            title = "%d state%s recorded"%(l, plural)
+            self.w.setTitle(title)
         else:
-            self.w.status.set(text)
+            self.w.setTitle(text)
+    
+    def currentGlyphChanged(self, notification):
+        if not (notification["glyph"] == self._currentGlyph):
+            self.subscribeGlyph()
+        
+    def keyDown(self, notification):
+        if notification["event"].characters() == "a":
+            self.saveState()
     
     def bindingWindowClosed(self, sender):
-        for item in self._sates:
+        for item in self._states:
             item.breakCycles()
+        removeObserver(self, "currentGlyphChanged")
+        removeObserver(self, "keyDown")
     
-    def bindingWindowBecameMain(self, sender):
+    #def bindingWindowBecameMain(self, sender):
+    #    self.subscribeGlyph()
+        
+    def subscribeGlyph(self):
+        for item in self._states:
+            item.breakCycles()
+        self._states = []
         self._currentGlyph = g = CurrentGlyph()
         if g is None:
             self._lastState = None
@@ -100,12 +129,12 @@ class InterpolatedStateTool(object):
         self.enableButtons()
     
     def enableButtons(self):
-        if self._lastState is None:
-            self.w.saveButton.enable(False)
-            self.w.saveButton.setTitle("No glyph")
-        else:
-            self.w.saveButton.enable(True)
-            self.w.saveButton.setTitle("Add %s"%self._lastName)
+        #if self._lastState is None:
+        #    #self.w.saveButton.enable(False)
+        #    self.w.saveButton.setTitle("No glyph")
+        #else:
+        #    self.w.saveButton.enable(True)
+        #    self.w.saveButton.setTitle("Add %s"%self._lastName)
             
         if len(self._states)==0:
             self.w.clearButton.enable(False)
@@ -119,10 +148,9 @@ class InterpolatedStateTool(object):
             state = GlyphState(self._currentGlyph)
             if len(self._states)>0:
                 if state.digest == self._states[-1].digest:
-                    self.reportStatus("Already got this one.")
-                    NSBeep()
+                    # already got this one, thanks.
                     return
-            self.reportStatus("This is a new one.")
+            #self.reportStatus("This is a new one.")
             self._states.append(state)
             self.w.clearButton.enable(True)
             self.reportStatus()
@@ -137,7 +165,7 @@ class InterpolatedStateTool(object):
             self.w.interpolateSlider.enable(False)
             self.w.clearButton.enable(False)
             self.w.saveButton.enable(False)
-        
+
     def callbackSaveButton(self, sender):
         print sender
         self.saveState()
@@ -146,6 +174,7 @@ class InterpolatedStateTool(object):
         self._states = []
         self.reportStatus()
         self.w.clearButton.enable(False)
+        self.w.interpolateSlider.set(100)
         self.w.interpolateSlider.enable(False)
         self.reportStatus("Add a glyph.")
     
@@ -171,7 +200,6 @@ class InterpolatedStateTool(object):
         factor = sender.get()*0.01
         final = None
         length = len(self._states)-1
-
         ok = False
         if stateCount==1:
             a = self._states[0].getGlyph()
@@ -202,7 +230,8 @@ class InterpolatedStateTool(object):
             return False
         # Now we need to apply the resulting mathglyph to the glyph in the window.
         # Note: we're actually drawing in the currentglyph. Undo will be affected.
-        final.extractGlyph(self._currentGlyph)            
+        final.extractGlyph(self._currentGlyph)
+        self._currentGlyph.deselect()          
     
 if __name__ == "__main__":
     ist = InterpolatedStateTool()
